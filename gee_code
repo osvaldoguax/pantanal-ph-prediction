@@ -1,0 +1,409 @@
+/*This code was developed as part of the paper entitled 
+"A new pathway for the classification of Nhecolândia lakes (Brazilian Pantanal) using cloud-based Landsat TM/ETM+ and OLI Images on Google Earth Engine"
+Developed by: Pereira, O. J. P. 
+Date of last update: 13/03/2020
+*/
+
+//Limit of the studied area encompassing the region of the Pantanal of Nhecolândia
+var Mascara = ee.FeatureCollection('users/veget_indexes/Limites_Oficiais/Nhecolandia');
+
+var empty = ee.Image().byte();
+
+//Adicionar o limite da célula da grade Agroideal usada para teste.
+var outline = empty.paint({
+  featureCollection: Mascara,
+  color: 1,
+  width: 3
+});
+
+Map.addLayer(outline, {palette: 'FF0000'}, 'Limite da célula');
+
+//Field samples dataset within areas of lakes, comprising the measurement of water pH
+var Amostras = ee.FeatureCollection([
+ee.Feature(ee.Geometry.Point([-56.1782989501953,-19.5601997375488]), {label:'1'}),
+ee.Feature(ee.Geometry.Point([-56.1823997497558,-19.5578002929687]), {label:'2'}),
+ee.Feature(ee.Geometry.Point([-56.182201385498,-19.5583992004394]), {label:'3'}),
+ee.Feature(ee.Geometry.Point([-56.1856994628906,-19.5620002746582]), {label:'4'}),
+ee.Feature(ee.Geometry.Point([-56.1887016296386,-19.5601997375488]), {label:'5'}),
+ee.Feature(ee.Geometry.Point([-56.2229995727539,-19.5555992126464]), {label:'6'}),
+ee.Feature(ee.Geometry.Point([-56.2179985046386,-19.554100036621]), {label:'7'}),
+ee.Feature(ee.Geometry.Point([-56.2167015075683,-19.5604991912841]), {label:'8'}),
+ee.Feature(ee.Geometry.Point([-56.2257995605468,-19.5611000061035]), {label:'9'}),
+ee.Feature(ee.Geometry.Point([-56.2140998840332,-19.5333003997802]), {label:'10'}),
+ee.Feature(ee.Geometry.Point([-56.2125015258789,-19.5370998382568]), {label:'11'}),
+ee.Feature(ee.Geometry.Point([-56.2130012512207,-19.5424003601074]), {label:'12'}),
+ee.Feature(ee.Geometry.Point([-56.2220001220703,-19.5450000762939]), {label:'13'}),
+ee.Feature(ee.Geometry.Point([-56.2173995971679,-19.5398006439208]), {label:'14'}),
+ee.Feature(ee.Geometry.Point([-56.1263999938964,-19.449499130249]), {label:'15'}),
+ee.Feature(ee.Geometry.Point([-56.1328010559082,-19.4489002227783]), {label:'16'}),
+ee.Feature(ee.Geometry.Point([-56.1400985717773,-19.4612998962402]), {label:'17'}),
+ee.Feature(ee.Geometry.Point([-56.1227989196777,-19.4526004791259]), {label:'18'}),
+ee.Feature(ee.Geometry.Point([-56.1180000305175,-19.4501991271972]), {label:'19'}),
+ee.Feature(ee.Geometry.Point([-56.0993995666503,-19.4381008148193]), {label:'20'}),
+ee.Feature(ee.Geometry.Point([-56.0699996948242,-19.4482994079589]), {label:'21'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'22'}),
+ee.Feature(ee.Geometry.Point([-56.0602989196777,-19.478099822998]), {label:'23'}),
+ee.Feature(ee.Geometry.Point([-56.0609016418457,-19.4834003448486]), {label:'24'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'25'}),
+ee.Feature(ee.Geometry.Point([-56.0602989196777,-19.478099822998]), {label:'26'}),
+ee.Feature(ee.Geometry.Point([-56.0609016418457,-19.4834003448486]), {label:'27'}),
+ee.Feature(ee.Geometry.Point([-56.0699996948242,-19.4482994079589]), {label:'28'}),
+ee.Feature(ee.Geometry.Point([-56.0993995666503,-19.4381008148193]), {label:'29'}),
+ee.Feature(ee.Geometry.Point([-56.1328010559082,-19.4489002227783]), {label:'30'}),
+ee.Feature(ee.Geometry.Point([-56.1263999938964,-19.449499130249]), {label:'31'}),
+ee.Feature(ee.Geometry.Point([-56.1400985717773,-19.4612998962402]), {label:'32'}),
+ee.Feature(ee.Geometry.Point([-56.6478996276855,-18.9741992950439]), {label:'33'}),
+ee.Feature(ee.Geometry.Point([-56.6478996276855,-18.9741992950439]), {label:'34'}),
+ee.Feature(ee.Geometry.Point([-56.6618003845214,-18.9829006195068]), {label:'35'}),
+ee.Feature(ee.Geometry.Point([-56.6451988220214,-18.9799003601074]), {label:'36'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'37'}),
+ee.Feature(ee.Geometry.Point([-56.0602989196777,-19.478099822998]), {label:'38'}),
+ee.Feature(ee.Geometry.Point([-56.0609016418457,-19.4834003448486]), {label:'39'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'40'}),
+ee.Feature(ee.Geometry.Point([-56.0602989196777,-19.478099822998]), {label:'41'}),
+ee.Feature(ee.Geometry.Point([-56.1263999938964,-19.449499130249]), {label:'42'}),
+ee.Feature(ee.Geometry.Point([-56.1263999938964,-19.449499130249]), {label:'43'}),
+ee.Feature(ee.Geometry.Point([-56.1328010559082,-19.4489002227783]), {label:'44'}),
+ee.Feature(ee.Geometry.Point([-56.1400985717773,-19.4612998962402]), {label:'45'}),
+ee.Feature(ee.Geometry.Point([-56.0609016418457,-19.4834003448486]), {label:'46'}),
+ee.Feature(ee.Geometry.Point([-56.0602989196777,-19.478099822998]), {label:'47'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'48'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'49'}),
+ee.Feature(ee.Geometry.Point([-56.0602989196777,-19.478099822998]), {label:'50'}),
+ee.Feature(ee.Geometry.Point([-56.0609016418457,-19.4834003448486]), {label:'51'}),
+ee.Feature(ee.Geometry.Point([-56.0609016418457,-19.4834003448486]), {label:'52'}),
+ee.Feature(ee.Geometry.Point([-56.0602989196777,-19.478099822998]), {label:'53'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'54'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'55'}),
+ee.Feature(ee.Geometry.Point([-56.0602989196777,-19.478099822998]), {label:'56'}),
+ee.Feature(ee.Geometry.Point([-56.0609016418457,-19.4834003448486]), {label:'57'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'58'}),
+ee.Feature(ee.Geometry.Point([-56.0602989196777,-19.478099822998]), {label:'59'}),
+ee.Feature(ee.Geometry.Point([-56.0609016418457,-19.4834003448486]), {label:'60'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'61'}),
+ee.Feature(ee.Geometry.Point([-56.1328010559082,-19.4489002227783]), {label:'62'}),
+ee.Feature(ee.Geometry.Point([-56.076301574707,-19.4629001617431]), {label:'63'}),
+ee.Feature(ee.Geometry.Point([-56.1400985717773,-19.4612998962402]), {label:'64'}),
+ee.Feature(ee.Geometry.Point([-56.0556983947753,-19.4713993072509]), {label:'65'}),
+ee.Feature(ee.Geometry.Point([-56.0848007202148,-19.5487003326416]), {label:'66'}),
+ee.Feature(ee.Geometry.Point([-56.0792999267578,-19.5492992401123]), {label:'67'}),
+ee.Feature(ee.Geometry.Point([-56.0798988342285,-19.5526008605957]), {label:'68'}),
+ee.Feature(ee.Geometry.Point([-56.0868988037109,-19.5802001953125]), {label:'69'}),
+ee.Feature(ee.Geometry.Point([-56.0848999023437,-19.5664005279541]), {label:'70'}),
+ee.Feature(ee.Geometry.Point([-56.0789985656738,-19.5436992645263]), {label:'71'}),
+ee.Feature(ee.Geometry.Point([-56.0714988708496,-19.5049991607666]), {label:'72'}),
+ee.Feature(ee.Geometry.Point([-56.0923995971679,-19.5650005340576]), {label:'73'}),
+ee.Feature(ee.Geometry.Point([-56.092601776123,-19.5533008575439]), {label:'74'}),
+ee.Feature(ee.Geometry.Point([-56.0996017456054,-19.5564002990722]), {label:'75'}),
+ee.Feature(ee.Geometry.Point([-56.1200981140136,-19.5650997161865]), {label:'76'}),
+ee.Feature(ee.Geometry.Point([-56.1324005126953,-19.5694999694824]), {label:'77'}),
+ee.Feature(ee.Geometry.Point([-56.1063995361328,-19.5772991180419]), {label:'78'}),
+ee.Feature(ee.Geometry.Point([-56.1024017333984,-19.5760993957519]), {label:'79'}),
+ee.Feature(ee.Geometry.Point([-56.1040992736816,-19.5578002929687]), {label:'80'}),
+ee.Feature(ee.Geometry.Point([-56.0182991027832,-19.6009006500244]), {label:'81'}),
+ee.Feature(ee.Geometry.Point([-56.021198272705,-19.5990009307861]), {label:'82'}),
+ee.Feature(ee.Geometry.Point([-56.002700805664,-19.5858993530273]), {label:'83'}),
+ee.Feature(ee.Geometry.Point([-55.9964981079101,-19.577199935913]), {label:'84'}),
+ee.Feature(ee.Geometry.Point([-55.9838981628417,-19.5652999877929]), {label:'85'}),
+ee.Feature(ee.Geometry.Point([-56.0397987365722,-19.5925998687744]), {label:'86'}),
+ee.Feature(ee.Geometry.Point([-56.0471000671386,-19.5599994659423]), {label:'87'}),
+ee.Feature(ee.Geometry.Point([-56.0596008300781,-19.5748996734619]), {label:'88'}),
+ee.Feature(ee.Geometry.Point([-56.6318016052246,-18.9850997924804]), {label:'89'}),
+ee.Feature(ee.Geometry.Point([-56.6411018371582,-18.9801998138427]), {label:'90'}),
+ee.Feature(ee.Geometry.Point([-56.6525001525878,-18.9722003936767]), {label:'91'}),
+ee.Feature(ee.Geometry.Point([-56.6665000915527,-18.9908008575439]), {label:'92'}),
+ee.Feature(ee.Geometry.Point([-56.7285995483398,-19.0114002227783]), {label:'93'}),
+ee.Feature(ee.Geometry.Point([-56.6213989257812,-18.9869003295898]), {label:'94'}),
+ee.Feature(ee.Geometry.Point([-56.6127014160156,-18.975299835205]), {label:'95'}),
+ee.Feature(ee.Geometry.Point([-56.6192016601562,-18.9715995788574]), {label:'96'}),
+ee.Feature(ee.Geometry.Point([-56.527099609375,-18.903600692749]), {label:'97'}),
+ee.Feature(ee.Geometry.Point([-56.5467987060546,-18.8924007415771]), {label:'98'}),
+ee.Feature(ee.Geometry.Point([-56.551700592041,-18.9062995910644]), {label:'99'}),
+ee.Feature(ee.Geometry.Point([-56.5438003540039,-18.930700302124]), {label:'100'}),
+ee.Feature(ee.Geometry.Point([-56.5393981933593,-18.9384994506835]), {label:'101'}),
+ee.Feature(ee.Geometry.Point([-56.5531997680664,-18.9615993499755]), {label:'102'}),
+ee.Feature(ee.Geometry.Point([-56.4384002685546,-18.9069004058837]), {label:'103'}),
+ee.Feature(ee.Geometry.Point([-56.3843002319335,-18.9160003662109]), {label:'104'}),
+ee.Feature(ee.Geometry.Point([-56.3717994689941,-18.919599533081]), {label:'105'}),
+ee.Feature(ee.Geometry.Point([-56.3618011474609,-18.9211997985839]), {label:'106'}),
+ee.Feature(ee.Geometry.Point([-56.3646011352539,-18.9361991882324]), {label:'107'}),
+ee.Feature(ee.Geometry.Point([-56.3783988952636,-18.9599990844726]), {label:'108'}),
+ee.Feature(ee.Geometry.Point([-56.3708992004394,-18.9608001708984]), {label:'109'}),
+ee.Feature(ee.Geometry.Point([-56.7336997985839,-18.9053993225097]), {label:'110'}),
+ee.Feature(ee.Geometry.Point([-56.6976013183593,-18.9253005981445]), {label:'111'}),
+ee.Feature(ee.Geometry.Point([-56.6015014648437,-18.9944992065429]), {label:'112'}),
+ee.Feature(ee.Geometry.Point([-56.6073989868164,-19.0070991516113]), {label:'113'}),
+ee.Feature(ee.Geometry.Point([-56.6082000732421,-19.0102996826171]), {label:'114'}),
+ee.Feature(ee.Geometry.Point([-56.7350997924804,-19.0979995727539]), {label:'115'}),
+ee.Feature(ee.Geometry.Point([-56.8255004882812,-19.1431007385253]), {label:'116'}),
+ee.Feature(ee.Geometry.Point([-56.8825988769531,-19.1930999755859]), {label:'117'}),
+ee.Feature(ee.Geometry.Point([-56.0822982788085,-19.5555992126464]), {label:'118'}),
+ee.Feature(ee.Geometry.Point([-56.0606002807617,-19.478099822998]), {label:'119'}),
+ee.Feature(ee.Geometry.Point([-56.0751991271972,-19.4853992462158]), {label:'120'}),
+ee.Feature(ee.Geometry.Point([-56.0717010498046,-19.4927997589111]), {label:'121'}),
+ee.Feature(ee.Geometry.Point([-56.1020011901855,-19.5604000091552]), {label:'122'}),
+ee.Feature(ee.Geometry.Point([-56.1455001831054,-19.5681991577148]), {label:'123'}),
+ee.Feature(ee.Geometry.Point([-56.6609992980957,-18.9827995300292]), {label:'124'}),
+ee.Feature(ee.Geometry.Point([-56.624698638916,-18.9617004394531]), {label:'125'}),
+ee.Feature(ee.Geometry.Point([-56.3720016479492,-18.9164009094238]), {label:'126'}),
+ee.Feature(ee.Geometry.Point([-56.3592987060546,-18.9281005859375]), {label:'127'}),
+ee.Feature(ee.Geometry.Point([-56.5162010192871,-18.9058990478515]), {label:'128'}),
+ee.Feature(ee.Geometry.Point([-56.4970016479492,-18.9027996063232]), {label:'129'}),
+ee.Feature(ee.Geometry.Point([-56.5042991638183,-18.9016990661621]), {label:'130'})
+]);
+
+//Mask Clouds on Landsat Surface Reflectance products for TM, ETM and OLI bands
+var getQABits = function(image, start, end, newName) {
+    var pattern = 0;
+    for (var i = start; i <= end; i++) {
+       pattern += Math.pow(2, i);
+    }
+    return image.select([0], [newName])
+                  .bitwiseAnd(pattern)
+                  .rightShift(start);
+};
+
+var cloud_shadows = function(image) {
+  var QA = image.select(['BQA']);
+  return getQABits(QA, 7,8, 'Cloud_shadows').eq(1);
+};
+
+var clouds = function(image) {
+  var QA = image.select(['BQA']);
+  return getQABits(QA, 4,4, 'Cloud').neq(1);
+};
+
+var maskClouds_TM5 = function(image) {
+  var cs = cloud_shadows(image);
+  var c = clouds(image);
+  image = image.updateMask(cs);
+  return image.updateMask(c);
+};
+
+
+//Adding time band
+var addTime = function(image)
+ {
+  var date = ee.Date(image.get('system:time_start'));
+  var years = date.difference(ee.Date('1970-01-01'), 'year');
+  var timeRadians = ee.Image(years.multiply(2 * Math.PI));
+  return image.addBands(timeRadians.rename('t').float());
+};
+
+//Landsat 8 TOA collection.
+var collection_l8 = l8toa
+  .filterBounds(Mascara)
+  .map(maskClouds_TM5)
+  .filterDate('2013-04-04','2018-01-01')
+  .select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7'], ['B1', 'B2', 'B3', 'B4', 'B5', 'B7'])
+  ;
+  
+//Landsat 7 TOA collection.
+var collection_l7 = l7toa
+  .filterBounds(Mascara)
+  .map(maskClouds_TM5)
+  .filterDate('2002-01-01','2013-04-04')
+  .select('B1', 'B2', 'B3', 'B4', 'B5', 'B7');
+  
+//Landsat 5 TOA collection.
+var collection_l5 = l5toa
+  .filterBounds(Mascara)
+  .map(maskClouds_TM5)
+  .filterDate('2002-01-01','2011-10-27')
+  .select('B1', 'B2', 'B3', 'B4', 'B5', 'B7')
+  ;
+
+var collection0 = ee.ImageCollection(collection_l8.merge(collection_l5).merge(collection_l7)).sort('system:time_start', true).filterBounds(Mascara);
+
+//Nearest neighbor filter
+var timeField = 'system:time_start';
+var date = ee.Date(collection0.get(timeField));
+
+var join = ee.Join.saveAll({
+  matchesKey: 'images'
+});
+
+var diffFilter = ee.Filter.maxDifference({
+  difference: 1000 * 60 * 60 * 24 * 30,
+  leftField: timeField, 
+  rightField: timeField
+});
+
+var threeNeighborJoin = join.apply({
+  primary: collection0, 
+  secondary: collection0, 
+  condition: diffFilter
+});
+
+//Filtered collection
+var collection1 = ee.ImageCollection(threeNeighborJoin.map(function(image) {
+  var col = ee.ImageCollection.fromImages(image.get('images'));
+  return ee.Image(image).addBands(col.mean(), null, true);
+}));
+
+//NDMI
+var add_NDWI_TM = function(image){return(image)
+    .addBands(image.normalizedDifference(['B4', 'B5']).rename('NDWI'));
+};
+
+//NDVI
+var add_NDVI_TM = function(image){return(image)
+    .addBands(image.normalizedDifference(['B4', 'B3']).rename('NDVI'));
+};
+
+//AWEI
+var add_AWEISH_TM = function(image){return(image).addBands(image.expression(
+    '4 * (band2 - band5) - (0.25 * (band4 + 2.75 * band7))', 
+    {
+    'band2': image.select('B2'),
+    'band4': image.select('B4'),
+    'band5': image.select('B5'),
+    'band7': image.select('B7')
+    }
+      ).rename('AWEISH'));};
+
+//NDWI
+var add_MNDWI_TM = function(image){return(image)
+    .addBands(image.normalizedDifference(['B2', 'B5']).rename('MNDWI'));
+};
+
+//Final bands
+var bands0 = ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'NDWI', 'NDVI', 'AWEISH', 'MNDWI'];
+
+//Final image collection
+var image_final = collection1
+    .map(add_NDWI_TM).map(add_NDVI_TM).map(add_AWEISH_TM).map(add_MNDWI_TM)
+    .filter(ee.Filter.calendarRange(1,5,'month'))//season with highest correlation between pH and landsat bands
+    .filterDate('2002-01-01', '2017-12-31') 
+    .select(bands0)
+    .mean()
+    .multiply(10000)
+    .toInt16()
+    .clip(Mascara);
+    
+//Landsat meadian collection
+var image_final0 = collection1
+    .map(add_NDWI_TM).map(add_NDVI_TM).map(add_AWEISH_TM).map(add_MNDWI_TM)
+    .filter(ee.Filter.calendarRange(1,5,'month'))
+    .filterDate('2013-01-01', '2017-12-31') 
+    .select(bands0);
+
+//pH band obtained by genetic programming
+var pH_band = image_final.expression(
+    '5.50287716864829 + 0.000268672118928222 * NDWI + 4.01403093541076e-6 * MNDWI + 5.48809801030712e-8 * (MNDWI * MNDWI) + 0.397031729312931 * sin(5.29331388964706 + 5.50287716864829 * MNDWI) - 0.358918009632248 * sin(2.5021754207847 * MNDWI)', 
+    {
+    'NDWI': image_final.select('NDWI'),
+    'MNDWI': image_final.select('MNDWI')
+    }).rename('pH').clip(Mascara);    
+
+//Maks of lakes
+var Lakes_Mask = ee.Image('users/Merino/Lagoas/GeoCover2_reclass_lagoas');
+var mask = Lakes_Mask.select('b1').gt(0);
+
+var Palette =
+  '<RasterSymbolizer>' +
+    '<ColorMap type="ramp" extended="false" >' +
+      '<ColorMapEntry color="#000099" quantity="4.5" label="4.5"/>' +
+      '<ColorMapEntry color="#00cccc" quantity="6" label="6" />' +
+      '<ColorMapEntry color="#66ff66" quantity="7.5" label="7.5" />' +
+      '<ColorMapEntry color="#cccc00" quantity="8" label="8" />' +
+      '<ColorMapEntry color="#ff8000" quantity="9" label="9" />' +
+      '<ColorMapEntry color="#ff3333" quantity="10" label="10" />' +
+    '</ColorMap>' +
+  '</RasterSymbolizer>';
+
+//Export landsat composition
+var exportar_composicao = false;
+if(exportar_composicao){
+Export.image.toAsset({
+  image: image_final,
+  description: 'Landsat_TM_Comp_Nheco',
+  assetId: 'Comp_Landsat_Nhecolandia',
+  scale: 30,
+  region: Mascara,
+  maxPixels: 9999999999,
+  pyramidingPolicy: {
+    '.default': 'sample'
+  }
+});
+}
+
+//Parameters for chart of median band values
+var options = {
+  title: 'Resposta Espectral Final dos Pontos (Landsat TM 5)',
+  hAxis: {title: 'Bandas Espectrais TM 5'},
+  vAxis: {title: 'Reflectância (porcentagem/100)'},
+  lineWidth: 1,
+  pointSize: 4,
+  series: {
+    0: {color: '00FF00'}, 
+    1: {color: '0000FF'}, 
+    2: {color: 'FF0000'}, // (...)
+}};
+
+//Final bands. 
+var wavelengths = ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'NDWI', 'NDVI', 'AWEISH', 'MNDWI'];
+
+//Create chart
+var spectraChart = ui.Chart.image.regions(
+    image_final, Amostras, ee.Reducer.median(), 30, 'label', wavelengths)
+        .setChartType('LineChart')
+        .setOptions(options);
+print(spectraChart);
+
+//Add maps
+Map.centerObject(Amostras, 10);
+Map.addLayer(Amostras, {color: 'ffff00'}, 'Amostras Pontuais');
+Map.addLayer(image_final, {bands: ['B7', 'B4', 'B2'], min: [800, 800, 900], max: [1000, 3200, 1100]}, 'Landsat TM Summer Composition');
+Map.addLayer(pH_band.mask(mask).sldStyle(Palette), {}, 'pH Band');
+
+/////////////////////////Add pH legend//////////////////
+var legend = ui.Panel({
+  style: {
+    position: 'bottom-left',
+    padding: '8px 6px'
+  }
+});
+
+var legendTitle = ui.Label({
+  value: 'pH predito (lagoas)',
+  style: {
+    fontWeight: 'bold',
+    fontSize: '14px',
+    margin: '0 0 2px 0',
+    padding: '0'
+    }
+});
+
+legend.add(legendTitle);
+    
+var makeRow = function(color, name) {
+      
+      var colorBox = ui.Label({
+        style: {
+          backgroundColor: '#' + color,
+          padding: '8px',
+          margin: '0 0 8px 0'
+        }
+      });
+      
+      var description = ui.Label({
+        value: name,
+        style: {margin: '0 0 4px 6px'}
+      });
+      
+      return ui.Panel({
+        widgets: [colorBox, description],
+        layout: ui.Panel.Layout.Flow('horizontal')
+      });
+};
+
+var palette =['00cccc','66ff66','cccc00','ff8000','ff3333'];
+
+var names = ['pH < 6','7.5','8', 'pH > 9'];
+
+for (var i = 0; i < 4; i++) {
+  legend.add(makeRow(palette[i], names[i]));
+  }  
+
+Map.add(legend); 
