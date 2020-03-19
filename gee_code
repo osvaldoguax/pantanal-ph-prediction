@@ -1,22 +1,25 @@
 /*This code was developed as part of the paper entitled 
-"A new pathway for the classification of Nhecolândia lakes (Brazilian Pantanal) using cloud-based Landsat TM/ETM+ and OLI Images on Google Earth Engine"
+"Modelling water pH of the Nhecolândia lakes (Brazilian Pantanal) using cloud-based
+Landsat TM/ETM+ and OLI Images on Google Earth Engine"
 Developed by: Pereira, O. J. P. 
-Date of last update: 13/03/2020
+Date of last update: 18/06/2019
 */
 
 //Limit of the studied area encompassing the region of the Pantanal of Nhecolândia
 var Mascara = ee.FeatureCollection('users/veget_indexes/Limites_Oficiais/Nhecolandia');
 
+//Create an empty image to draw the stuy area outline
 var empty = ee.Image().byte();
 
-//Adicionar o limite da célula da grade Agroideal usada para teste.
+//Add an outline to the study area.
 var outline = empty.paint({
   featureCollection: Mascara,
   color: 1,
   width: 3
 });
 
-Map.addLayer(outline, {palette: 'FF0000'}, 'Limite da célula');
+//Add the limit of the Nhecolândia region
+Map.addLayer(outline, {palette: 'FF0000'}, 'Pantanal of Nhecolandia limit');
 
 //Field samples dataset within areas of lakes, comprising the measurement of water pH
 var Amostras = ee.FeatureCollection([
@@ -152,7 +155,7 @@ ee.Feature(ee.Geometry.Point([-56.4970016479492,-18.9027996063232]), {label:'129
 ee.Feature(ee.Geometry.Point([-56.5042991638183,-18.9016990661621]), {label:'130'})
 ]);
 
-//Mask Clouds on Landsat Surface Reflectance products for TM, ETM and OLI bands
+//Mask Clouds on Landsat Surface Reflectance scenes for TM, ETM and OLI bands
 var getQABits = function(image, start, end, newName) {
     var pattern = 0;
     for (var i = start; i <= end; i++) {
@@ -165,12 +168,12 @@ var getQABits = function(image, start, end, newName) {
 
 var cloud_shadows = function(image) {
   var QA = image.select(['BQA']);
-  return getQABits(QA, 7,8, 'Cloud_shadows').eq(1);
+  return getQABits(QA, 7,8, 'Cloud_shadows').eq(1);//shadow mask
 };
 
 var clouds = function(image) {
   var QA = image.select(['BQA']);
-  return getQABits(QA, 4,4, 'Cloud').neq(1);
+  return getQABits(QA, 4,4, 'Cloud').neq(1);//cloud mask
 };
 
 var maskClouds_TM5 = function(image) {
@@ -213,6 +216,7 @@ var collection_l5 = l5toa
   .select('B1', 'B2', 'B3', 'B4', 'B5', 'B7')
   ;
 
+//Merging Landsat collection
 var collection0 = ee.ImageCollection(collection_l8.merge(collection_l5).merge(collection_l7)).sort('system:time_start', true).filterBounds(Mascara);
 
 //Nearest neighbor filter
@@ -235,23 +239,23 @@ var threeNeighborJoin = join.apply({
   condition: diffFilter
 });
 
-//Filtered collection
+//Smoothed collection
 var collection1 = ee.ImageCollection(threeNeighborJoin.map(function(image) {
   var col = ee.ImageCollection.fromImages(image.get('images'));
   return ee.Image(image).addBands(col.mean(), null, true);
 }));
 
-//NDMI
+//NDMI band
 var add_NDWI_TM = function(image){return(image)
     .addBands(image.normalizedDifference(['B4', 'B5']).rename('NDWI'));
 };
 
-//NDVI
+//NDVI band
 var add_NDVI_TM = function(image){return(image)
     .addBands(image.normalizedDifference(['B4', 'B3']).rename('NDVI'));
 };
 
-//AWEI
+//AWEI band
 var add_AWEISH_TM = function(image){return(image).addBands(image.expression(
     '4 * (band2 - band5) - (0.25 * (band4 + 2.75 * band7))', 
     {
@@ -262,18 +266,18 @@ var add_AWEISH_TM = function(image){return(image).addBands(image.expression(
     }
       ).rename('AWEISH'));};
 
-//NDWI
+//NDWI band
 var add_MNDWI_TM = function(image){return(image)
     .addBands(image.normalizedDifference(['B2', 'B5']).rename('MNDWI'));
 };
 
-//Final bands
+//Final Landsat original and synthetic bands
 var bands0 = ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'NDWI', 'NDVI', 'AWEISH', 'MNDWI'];
 
-//Final image collection
+//Final image collection to preditc pH
 var image_final = collection1
     .map(add_NDWI_TM).map(add_NDVI_TM).map(add_AWEISH_TM).map(add_MNDWI_TM)
-    .filter(ee.Filter.calendarRange(1,5,'month'))//season with highest correlation between pH and landsat bands
+    .filter(ee.Filter.calendarRange(1,5,'month'))//season with highest correlation between pH and landsat NDWI band
     .filterDate('2002-01-01', '2017-12-31') 
     .select(bands0)
     .mean()
@@ -288,31 +292,45 @@ var image_final0 = collection1
     .filterDate('2013-01-01', '2017-12-31') 
     .select(bands0);
 
-//pH band obtained by genetic programming
+//pH band obtained by genetic programming (GP)
 var pH_band = image_final.expression(
     '5.50287716864829 + 0.000268672118928222 * NDWI + 4.01403093541076e-6 * MNDWI + 5.48809801030712e-8 * (MNDWI * MNDWI) + 0.397031729312931 * sin(5.29331388964706 + 5.50287716864829 * MNDWI) - 0.358918009632248 * sin(2.5021754207847 * MNDWI)', 
     {
     'NDWI': image_final.select('NDWI'),
     'MNDWI': image_final.select('MNDWI')
     }).rename('pH').clip(Mascara);    
-
+    
 //Maks of lakes
-var Lakes_Mask = ee.Image('users/Merino/Lagoas/GeoCover2_reclass_lagoas');
 var mask = Lakes_Mask.select('b1').gt(0);
 
+//Create a feature collection with median pH values within lakes, based on the predicted pH band 
+var lagos_pH = ee.Image('users/veget_indexes/Pantanal/pH_Nheco_Nhecolandia').select('pH')
+  .mask(mask).reduceRegions({
+  collection: ee.FeatureCollection('users/veget_indexes/Limites_Oficiais/Lagos_Nhecolandia'),
+  reducer: ee.Reducer.median(),
+  scale: 30
+});
+
+//Palette with defined pH values for different lake categories: fresh water, oligosaline, saline
 var Palette =
   '<RasterSymbolizer>' +
     '<ColorMap type="ramp" extended="false" >' +
-      '<ColorMapEntry color="#000099" quantity="4.5" label="4.5"/>' +
       '<ColorMapEntry color="#00cccc" quantity="6" label="6" />' +
       '<ColorMapEntry color="#66ff66" quantity="7.5" label="7.5" />' +
       '<ColorMapEntry color="#cccc00" quantity="8" label="8" />' +
       '<ColorMapEntry color="#ff8000" quantity="9" label="9" />' +
-      '<ColorMapEntry color="#ff3333" quantity="10" label="10" />' +
-    '</ColorMap>' +
+      '</ColorMap>' +
   '</RasterSymbolizer>';
+  
+// Paint the interior of the lakes (pH Band) with median pH values in the feature collection
+var fills = pH_band.mask(mask).paint({
+  featureCollection: lagos_pH,
+  color: 'median',
+});
 
-//Export landsat composition
+Map.addLayer(fills.sldStyle(Palette),{}, 'Median simulated pH');
+    
+//Export landsat composition to asset
 var exportar_composicao = false;
 if(exportar_composicao){
 Export.image.toAsset({
@@ -321,14 +339,14 @@ Export.image.toAsset({
   assetId: 'Comp_Landsat_Nhecolandia',
   scale: 30,
   region: Mascara,
-  maxPixels: 9999999999,
+  maxPixels: 1e13,
   pyramidingPolicy: {
     '.default': 'sample'
   }
 });
 }
 
-//Parameters for chart of median band values
+//Parameters for chart of median Landsat simulated and original bands - values used to create the pH prediction equation
 var options = {
   title: 'Resposta Espectral Final dos Pontos (Landsat TM 5)',
   hAxis: {title: 'Bandas Espectrais TM 5'},
@@ -341,7 +359,7 @@ var options = {
     2: {color: 'FF0000'}, // (...)
 }};
 
-//Final bands. 
+//Final bands to create the chart
 var wavelengths = ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'NDWI', 'NDVI', 'AWEISH', 'MNDWI'];
 
 //Create chart
@@ -353,11 +371,10 @@ print(spectraChart);
 
 //Add maps
 Map.centerObject(Amostras, 10);
-Map.addLayer(Amostras, {color: 'ffff00'}, 'Amostras Pontuais');
-Map.addLayer(image_final, {bands: ['B7', 'B4', 'B2'], min: [800, 800, 900], max: [1000, 3200, 1100]}, 'Landsat TM Summer Composition');
-Map.addLayer(pH_band.mask(mask).sldStyle(Palette), {}, 'pH Band');
+Map.addLayer(Amostras, {color: 'ffff00'}, 'Amostras Pontuais', false);
+Map.addLayer(image_final, {bands: ['B7', 'B4', 'B2'], min: [800, 800, 900], max: [1000, 3200, 1100]}, 'Landsat TM Summer Composition', false);
 
-/////////////////////////Add pH legend//////////////////
+////////////Add pH legend////////////
 var legend = ui.Panel({
   style: {
     position: 'bottom-left',
