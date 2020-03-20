@@ -307,9 +307,10 @@ var mask = ee.Image('users/Merino/Lagoas/GeoCover2_reclass_lagoas').select('b1')
 var lagos_pH = ee.Image('users/veget_indexes/Pantanal/pH_Nheco_Nhecolandia').select('pH')
   .mask(mask).reduceRegions({
   collection: ee.FeatureCollection('users/veget_indexes/Limites_Oficiais/Lagos_Nhecolandia'),
-  reducer: ee.Reducer.median(),
+  reducer: ee.Reducer.percentile([75]),
   scale: 30
 });
+print(lagos_pH.limit(10), 'Feature Collection with pH values');
 
 //Palette with defined pH values for different lake categories: fresh water, oligosaline, saline
 var Palette =
@@ -325,9 +326,12 @@ var Palette =
 // Paint the interior of the lakes (pH Band) with median pH values in the feature collection
 var fills = pH_band.mask(mask).paint({
   featureCollection: lagos_pH,
-  color: 'median',
+  color: 'p75',
 });
 
+//Map.addLayer(pH_band.mask(mask).sldStyle(Palette),{}, 'Simulated pH');
+
+//Final map with the simulated pH band generalized f
 Map.addLayer(fills.sldStyle(Palette),{}, 'Median simulated pH');
     
 //Export landsat composition to asset
