@@ -194,7 +194,7 @@ var addTime = function(image)
 };
 
 //Landsat 8 TOA collection.
-var collection_l8 = l8toa
+var collection_l8 = ee.ImageCollection("LANDSAT/LC08/C01/T1_TOA")
   .filterBounds(Mascara)
   .map(maskClouds_TM5)
   .filterDate('2013-04-04','2018-01-01')
@@ -202,14 +202,14 @@ var collection_l8 = l8toa
   ;
   
 //Landsat 7 TOA collection.
-var collection_l7 = l7toa
+var collection_l7 = ee.ImageCollection("LANDSAT/LE07/C01/T1_TOA")
   .filterBounds(Mascara)
   .map(maskClouds_TM5)
   .filterDate('2002-01-01','2013-04-04')
   .select('B1', 'B2', 'B3', 'B4', 'B5', 'B7');
   
 //Landsat 5 TOA collection.
-var collection_l5 = l5toa
+var collection_l5 = ee.ImageCollection('LANDSAT/LT05/C01/T1_TOA')
   .filterBounds(Mascara)
   .map(maskClouds_TM5)
   .filterDate('2002-01-01','2011-10-27')
@@ -301,7 +301,7 @@ var pH_band = image_final.expression(
     }).rename('pH').clip(Mascara);    
     
 //Maks of lakes
-var mask = Lakes_Mask.select('b1').gt(0);
+var mask = ee.Image('users/Merino/Lagoas/GeoCover2_reclass_lagoas').select('b1').gt(0);
 
 //Create a feature collection with median pH values within lakes, based on the predicted pH band 
 var lagos_pH = ee.Image('users/veget_indexes/Pantanal/pH_Nheco_Nhecolandia').select('pH')
