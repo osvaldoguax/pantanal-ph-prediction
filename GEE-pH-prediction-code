@@ -6,7 +6,7 @@ Date of last update: 18/06/2019
 */
 
 //Limit of the studied area encompassing the region of the Pantanal of Nhecolândia
-var Mascara = ee.FeatureCollection('users/veget_indexes/Limites_Oficiais/Nhecolandia');
+var Mascara = ee.FeatureCollection('users/veget_indexes/Pantanal/Limite_Nhecolandia');
 
 //Create an empty image to draw the stuy area outline
 var empty = ee.Image().byte();
