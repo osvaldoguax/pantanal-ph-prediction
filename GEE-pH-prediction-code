@@ -2,7 +2,7 @@
 "Modelling water pH of the Nhecolândia lakes (Brazilian Pantanal) using cloud-based
 Landsat TM/ETM+ and OLI Images on Google Earth Engine"
 Developed by: Pereira, O. J. P. 
-Date of last update: 18/06/2019
+Date of last update: 21/03/2020
 */
 
 //Limit of the studied area encompassing the region of the Pantanal of Nhecolândia
@@ -19,7 +19,7 @@ var outline = empty.paint({
 });
 
 //Add the limit of the Nhecolândia region
-Map.addLayer(outline, {palette: 'FF0000'}, 'Pantanal of Nhecolandia limit');
+Map.addLayer(outline, {palette: '000000'}, 'Pantanal of Nhecolandia limit');
 
 //Field samples dataset within areas of lakes, comprising the measurement of water pH
 var Amostras = ee.FeatureCollection([
@@ -166,16 +166,19 @@ var getQABits = function(image, start, end, newName) {
                   .rightShift(start);
 };
 
+//Cloud shadows mask
 var cloud_shadows = function(image) {
   var QA = image.select(['BQA']);
   return getQABits(QA, 7,8, 'Cloud_shadows').eq(1);//shadow mask
 };
 
+//Clouds mask
 var clouds = function(image) {
   var QA = image.select(['BQA']);
   return getQABits(QA, 4,4, 'Cloud').neq(1);//cloud mask
 };
 
+//Mask function
 var maskClouds_TM5 = function(image) {
   var cs = cloud_shadows(image);
   var c = clouds(image);
@@ -184,7 +187,7 @@ var maskClouds_TM5 = function(image) {
 };
 
 
-//Adding time band
+//Adding a time band
 var addTime = function(image)
  {
   var date = ee.Date(image.get('system:time_start'));
@@ -223,6 +226,7 @@ var collection0 = ee.ImageCollection(collection_l8.merge(collection_l5).merge(co
 var timeField = 'system:time_start';
 var date = ee.Date(collection0.get(timeField));
 
+//Join images organized by time
 var join = ee.Join.saveAll({
   matchesKey: 'images'
 });
@@ -239,7 +243,7 @@ var threeNeighborJoin = join.apply({
   condition: diffFilter
 });
 
-//Smoothed collection
+//Nearest neighbor smoothed collection
 var collection1 = ee.ImageCollection(threeNeighborJoin.map(function(image) {
   var col = ee.ImageCollection.fromImages(image.get('images'));
   return ee.Image(image).addBands(col.mean(), null, true);
@@ -300,17 +304,41 @@ var pH_band = image_final.expression(
     'MNDWI': image_final.select('MNDWI')
     }).rename('pH').clip(Mascara);    
     
-//Maks of lakes
+//Lakes mask for obtained from the classification of GeoCover Landsat image mosaic
 var mask = ee.Image('users/Merino/Lagoas/GeoCover2_reclass_lagoas').select('b1').gt(0);
 
-//Create a feature collection with median pH values within lakes, based on the predicted pH band 
+//A 60m buffer around the centroid of each lake in order to calculate mean pH values only within central regions to avoid border effect
+var lakes_buffer = ee.FeatureCollection(ee.FeatureCollection('users/veget_indexes/Pantanal/Buffer_Lakes_clip_GeoCover')); 
+
+//Create a feature collection with median pH values within central region of each lake, based on the predicted pH band. That should be the second collection for InnerJoin 
 var lagos_pH = ee.Image('users/veget_indexes/Pantanal/pH_Nheco_Nhecolandia').select('pH')
   .mask(mask).reduceRegions({
-  collection: ee.FeatureCollection('users/veget_indexes/Limites_Oficiais/Lagos_Nhecolandia'),
-  reducer: ee.Reducer.percentile([75]),
+  collection: lakes_buffer,
+  reducer: ee.Reducer.median(),
   scale: 30
 });
-print(lagos_pH.limit(10), 'Feature Collection with pH values');
+
+//Feature collection with each single lake within Nhecolandia region, mapped by using GeoCover Landsat collection. That should be the first collection for InnerJoin
+var lakes_feature = ee.FeatureCollection('users/veget_indexes/Limites_Oficiais/Lagos_Nhecolandia');
+
+// Use an equals filter to specify how the collections match.
+var toyFilter = ee.Filter.equals({
+  leftField: 'Id',
+  rightField: 'Id'
+});
+
+// Define the join for the lakes feature collection and buffer fearture collection
+var innerJoin = ee.Join.inner();
+
+//Apply the join.
+var toyJoin = innerJoin.apply(lakes_feature, lagos_pH,  toyFilter);
+
+//Cleaning the InnerJoin file to show pH mean values (buffer from lakes centroids) within the entire lakes' areas
+var lakes_clean = toyJoin.map(function(pair) {
+  var f1 = ee.Feature(pair.get('primary'));
+  var f2 = ee.Feature(pair.get('secondary'));
+  return f1.set(f2.toDictionary());
+});
 
 //Palette with defined pH values for different lake categories: fresh water, oligosaline, saline
 var Palette =
@@ -323,38 +351,20 @@ var Palette =
       '</ColorMap>' +
   '</RasterSymbolizer>';
   
-// Paint the interior of the lakes (pH Band) with median pH values in the feature collection
+// Paint the interior of the lakes (pH Band) with median pH values (centroid buffer) in the feature collection
 var fills = pH_band.mask(mask).paint({
-  featureCollection: lagos_pH,
-  color: 'p75',
+  featureCollection: lakes_clean,
+  color: 'median',
 });
 
-//Map.addLayer(pH_band.mask(mask).sldStyle(Palette),{}, 'Simulated pH');
-
-//Final map with the simulated pH band generalized f
+//Final map with the simulated pH band generalized for each lake
 Map.addLayer(fills.sldStyle(Palette),{}, 'Median simulated pH');
     
-//Export landsat composition to asset
-var exportar_composicao = false;
-if(exportar_composicao){
-Export.image.toAsset({
-  image: image_final,
-  description: 'Landsat_TM_Comp_Nheco',
-  assetId: 'Comp_Landsat_Nhecolandia',
-  scale: 30,
-  region: Mascara,
-  maxPixels: 1e13,
-  pyramidingPolicy: {
-    '.default': 'sample'
-  }
-});
-}
-
 //Parameters for chart of median Landsat simulated and original bands - values used to create the pH prediction equation
 var options = {
-  title: 'Resposta Espectral Final dos Pontos (Landsat TM 5)',
-  hAxis: {title: 'Bandas Espectrais TM 5'},
-  vAxis: {title: 'Reflectância (porcentagem/100)'},
+  title: 'In-situ samples realated to Landsat spectral response for pH prediction',
+  hAxis: {title: 'Original and simulated spectral bands'},
+  vAxis: {title: 'Reflectance'},
   lineWidth: 1,
   pointSize: 4,
   series: {
@@ -363,7 +373,7 @@ var options = {
     2: {color: 'FF0000'}, // (...)
 }};
 
-//Final bands to create the chart
+//Bands to create the chart
 var wavelengths = ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'NDWI', 'NDVI', 'AWEISH', 'MNDWI'];
 
 //Create chart
@@ -375,7 +385,7 @@ print(spectraChart);
 
 //Add maps
 Map.centerObject(Amostras, 10);
-Map.addLayer(Amostras, {color: 'ffff00'}, 'Amostras Pontuais', false);
+Map.addLayer(Amostras, {color: 'ffff00'}, 'In-situ pH samples', false);
 Map.addLayer(image_final, {bands: ['B7', 'B4', 'B2'], min: [800, 800, 900], max: [1000, 3200, 1100]}, 'Landsat TM Summer Composition', false);
 
 ////////////Add pH legend////////////
@@ -428,3 +438,4 @@ for (var i = 0; i < 4; i++) {
   }  
 
 Map.add(legend); 
+//END
