@@ -389,7 +389,7 @@ var legend = ui.Panel({
 });
 
 var legendTitle = ui.Label({
-  value: 'pH predito (lagoas)',
+  value: 'Predicted water pH',
   style: {
     fontWeight: 'bold',
     fontSize: '14px',
