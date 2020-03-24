@@ -1,27 +1,27 @@
-/*This code was developed as part of the paper entitled 
-"Modelling water pH of the Nhecolândia lakes (Brazilian Pantanal) using cloud-based
-Landsat TM/ETM+ and OLI Images on Google Earth Engine"
-Developed by: Pereira, O. J. P. 
-Date of last update: 21/03/2020
+/*This code was developed as part of the manuscript entitled 
+“Estimating water pH using cloud-based Landsat Images for a new classification of the Nhecolândia lakes (Brazilian Pantanal)” 
+Code Developed by: Pereira, O.J.P. and Merino, E.R. 
+Manuscript: Pereira and colaborators.
+Date of last update: 22/03/2020 
 */
 
-//Limit of the studied area encompassing the region of the Pantanal of Nhecolândia
+//Limit of the studied area encompassing the Nhecolândia Region in southern Pantanal.
 var Mascara = ee.FeatureCollection('users/veget_indexes/Pantanal/Limite_Nhecolandia');
 
-//Create an empty image to draw the stuy area outline
+//Creating an empty image to draw the stuy area outline
 var empty = ee.Image().byte();
 
-//Add an outline to the study area.
+//Adding an outline to the study area.
 var outline = empty.paint({
   featureCollection: Mascara,
   color: 1,
   width: 3
 });
 
-//Add the limit of the Nhecolândia region
+//Adding the limits of the Nhecolândia region
 Map.addLayer(outline, {palette: '000000'}, 'Pantanal of Nhecolandia limit');
 
-//Field samples dataset within areas of lakes, comprising the measurement of water pH
+//Water pH field meausured samples dataset. 
 var Amostras = ee.FeatureCollection([
 ee.Feature(ee.Geometry.Point([-56.1782989501953,-19.5601997375488]), {label:'1'}),
 ee.Feature(ee.Geometry.Point([-56.1823997497558,-19.5578002929687]), {label:'2'}),
@@ -166,19 +166,19 @@ var getQABits = function(image, start, end, newName) {
                   .rightShift(start);
 };
 
-//Cloud shadows mask
+//Cloud shadows mask.
 var cloud_shadows = function(image) {
   var QA = image.select(['BQA']);
   return getQABits(QA, 7,8, 'Cloud_shadows').eq(1);//shadow mask
 };
 
-//Clouds mask
+//Clouds mask.
 var clouds = function(image) {
   var QA = image.select(['BQA']);
   return getQABits(QA, 4,4, 'Cloud').neq(1);//cloud mask
 };
 
-//Mask function
+//Mask function.
 var maskClouds_TM5 = function(image) {
   var cs = cloud_shadows(image);
   var c = clouds(image);
@@ -187,7 +187,7 @@ var maskClouds_TM5 = function(image) {
 };
 
 
-//Adding a time band
+//Adding a time band.
 var addTime = function(image)
  {
   var date = ee.Date(image.get('system:time_start'));
@@ -196,7 +196,7 @@ var addTime = function(image)
   return image.addBands(timeRadians.rename('t').float());
 };
 
-//Landsat 8 TOA collection.
+//Landsat 8 TOA Reflectance Collection.
 var collection_l8 = ee.ImageCollection("LANDSAT/LC08/C01/T1_TOA")
   .filterBounds(Mascara)
   .map(maskClouds_TM5)
@@ -204,14 +204,14 @@ var collection_l8 = ee.ImageCollection("LANDSAT/LC08/C01/T1_TOA")
   .select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7'], ['B1', 'B2', 'B3', 'B4', 'B5', 'B7'])
   ;
   
-//Landsat 7 TOA collection.
+//Landsat 7 TOA Reflectance Collection.
 var collection_l7 = ee.ImageCollection("LANDSAT/LE07/C01/T1_TOA")
   .filterBounds(Mascara)
   .map(maskClouds_TM5)
   .filterDate('2002-01-01','2013-04-04')
   .select('B1', 'B2', 'B3', 'B4', 'B5', 'B7');
   
-//Landsat 5 TOA collection.
+//Landsat 5 TOA Reflectance Collection.
 var collection_l5 = ee.ImageCollection('LANDSAT/LT05/C01/T1_TOA')
   .filterBounds(Mascara)
   .map(maskClouds_TM5)
@@ -226,7 +226,7 @@ var collection0 = ee.ImageCollection(collection_l8.merge(collection_l5).merge(co
 var timeField = 'system:time_start';
 var date = ee.Date(collection0.get(timeField));
 
-//Join images organized by time
+//Join images sorted by time
 var join = ee.Join.saveAll({
   matchesKey: 'images'
 });
@@ -249,17 +249,17 @@ var collection1 = ee.ImageCollection(threeNeighborJoin.map(function(image) {
   return ee.Image(image).addBands(col.mean(), null, true);
 }));
 
-//NDMI band
+//Creating Normalized Difference Water Index (NDWI) band.
 var add_NDWI_TM = function(image){return(image)
     .addBands(image.normalizedDifference(['B4', 'B5']).rename('NDWI'));
 };
 
-//NDVI band
+//Creating Normalized Difference Vegetation Index (NDVI) band.
 var add_NDVI_TM = function(image){return(image)
     .addBands(image.normalizedDifference(['B4', 'B3']).rename('NDVI'));
 };
 
-//AWEI band
+//Creating Automated Water Extraction Index with no shadow features (AWEInsh) band.
 var add_AWEISH_TM = function(image){return(image).addBands(image.expression(
     '4 * (band2 - band5) - (0.25 * (band4 + 2.75 * band7))', 
     {
@@ -270,12 +270,12 @@ var add_AWEISH_TM = function(image){return(image).addBands(image.expression(
     }
       ).rename('AWEISH'));};
 
-//NDWI band
+////Creating Modified Normalized Difference Water Index (MNDWI)band.
 var add_MNDWI_TM = function(image){return(image)
     .addBands(image.normalizedDifference(['B2', 'B5']).rename('MNDWI'));
 };
 
-//Final Landsat original and synthetic bands
+//Merging Landsat and synthetic bands
 var bands0 = ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'NDWI', 'NDVI', 'AWEISH', 'MNDWI'];
 
 //Final image collection to preditc pH
@@ -289,14 +289,7 @@ var image_final = collection1
     .toInt16()
     .clip(Mascara);
     
-//Landsat meadian collection
-var image_final0 = collection1
-    .map(add_NDWI_TM).map(add_NDVI_TM).map(add_AWEISH_TM).map(add_MNDWI_TM)
-    .filter(ee.Filter.calendarRange(1,5,'month'))
-    .filterDate('2013-01-01', '2017-12-31') 
-    .select(bands0);
-
-//pH band obtained by genetic programming (GP)
+//pH band obtained by Genetic Programming (GP)
 var pH_band = image_final.expression(
     '5.50287716864829 + 0.000268672118928222 * NDWI + 4.01403093541076e-6 * MNDWI + 5.48809801030712e-8 * (MNDWI * MNDWI) + 0.397031729312931 * sin(5.29331388964706 + 5.50287716864829 * MNDWI) - 0.358918009632248 * sin(2.5021754207847 * MNDWI)', 
     {
@@ -304,13 +297,13 @@ var pH_band = image_final.expression(
     'MNDWI': image_final.select('MNDWI')
     }).rename('pH').clip(Mascara);    
     
-//Lakes mask for obtained from the classification of GeoCover Landsat image mosaic
+//Lake's mask obtained from the classification of GeoCover Landsat image mosaic
 var mask = ee.Image('users/Merino/Lagoas/GeoCover2_reclass_lagoas').select('b1').gt(0);
 
 //A 60m buffer around the centroid of each lake in order to calculate mean pH values only within central regions to avoid border effect
 var lakes_buffer = ee.FeatureCollection(ee.FeatureCollection('users/veget_indexes/Pantanal/Buffer_Lakes_clip_GeoCover')); 
 
-//Create a feature collection with median pH values within central region of each lake, based on the predicted pH band. That should be the second collection for InnerJoin 
+//Creating a feature collection with median pH values within central region of each lake, based on the predicted pH band. That should be the second collection for InnerJoin 
 var lagos_pH = ee.Image('users/veget_indexes/Pantanal/pH_Nheco_Nhecolandia').select('pH')
   .mask(mask).reduceRegions({
   collection: lakes_buffer,
@@ -321,16 +314,16 @@ var lagos_pH = ee.Image('users/veget_indexes/Pantanal/pH_Nheco_Nhecolandia').sel
 //Feature collection with each single lake within Nhecolandia region, mapped by using GeoCover Landsat collection. That should be the first collection for InnerJoin
 var lakes_feature = ee.FeatureCollection('users/veget_indexes/Limites_Oficiais/Lagos_Nhecolandia');
 
-// Use an equals filter to specify how the collections match.
+// Using an equals filter to specify how the collections match.
 var toyFilter = ee.Filter.equals({
   leftField: 'Id',
   rightField: 'Id'
 });
 
-// Define the join for the lakes feature collection and buffer fearture collection
+// Defining the join for the lakes feature collection and buffer fearture collection
 var innerJoin = ee.Join.inner();
 
-//Apply the join.
+//Appling the join.
 var toyJoin = innerJoin.apply(lakes_feature, lagos_pH,  toyFilter);
 
 //Cleaning the InnerJoin file to show pH mean values (buffer from lakes centroids) within the entire lakes' areas
@@ -340,14 +333,13 @@ var lakes_clean = toyJoin.map(function(pair) {
   return f1.set(f2.toDictionary());
 });
 
-//Palette with defined pH values for different lake categories: fresh water, oligosaline, saline
+//Palette with predicteed pH values for different lake categories: fresh water, oligosaline, saline
 var Palette =
   '<RasterSymbolizer>' +
     '<ColorMap type="ramp" extended="false" >' +
-      '<ColorMapEntry color="#00cccc" quantity="6" label="6" />' +
-      '<ColorMapEntry color="#66ff66" quantity="7.5" label="7.5" />' +
-      '<ColorMapEntry color="#cccc00" quantity="8" label="8" />' +
-      '<ColorMapEntry color="#ff8000" quantity="9" label="9" />' +
+      '<ColorMapEntry color="#0066cc" quantity="8" label="8" />' +
+      '<ColorMapEntry color="#4c9900" quantity="8.9" label="8.9" />' +
+      '<ColorMapEntry color="#cc0000" quantity="9" label="9" />' +
       '</ColorMap>' +
   '</RasterSymbolizer>';
   
@@ -357,7 +349,7 @@ var fills = pH_band.mask(mask).paint({
   color: 'median',
 });
 
-//Final map with the simulated pH band generalized for each lake
+//Final map with the predicted pH band generalized for each lake
 Map.addLayer(fills.sldStyle(Palette),{}, 'Median simulated pH');
     
 //Parameters for chart of median Landsat simulated and original bands - values used to create the pH prediction equation
@@ -429,13 +421,13 @@ var makeRow = function(color, name) {
       });
 };
 
-var palette =['00cccc','66ff66','cccc00','ff8000','ff3333'];
+var palette =['0066cc','4c9900','cc0000'];
 
-var names = ['pH < 6','7.5','8', 'pH > 9'];
+var names = ['pH < 7','pH 7 to 8.9', 'pH ≥ 9'];
 
-for (var i = 0; i < 4; i++) {
+for (var i = 0; i < 3; i++) {
   legend.add(makeRow(palette[i], names[i]));
   }  
 
 Map.add(legend); 
-//END
+//END 
